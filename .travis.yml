@@ -1,0 +1,39 @@
+stages:
+  - lint
+  - test_role
+  - test_docker
+
+language: python
+
+sudo: required
+
+services:
+  - docker
+
+addons:
+  apt:
+    update: true
+
+before_install:
+  - cp extra_vars.yml.ci extra_vars.yml
+  - sed -ri "s:AWS_ACCESS_KEY:$AWS_ACCESS_KEY:" extra_vars.yml
+  - sed -ri "s:AWS_SECRET_KEY:$AWS_SECRET_KEY:" extra_vars.yml
+
+jobs:
+  include:
+    - stage: lint
+      script: 
+        - ansible-galaxy install -r requirements.yml
+        - ansible-playbook tests/test.yml -i tests/inventory --check
+        - which ansible-playbook
+    - stage: test_role
+      script:
+        - echo "Needs root permissions, TODO."
+        - ansible-galaxy install -r requirements.yml
+        - echo ansible-playbook tests/test.yml -i tests/inventory
+    - stage: test_docker
+      script:
+        - docker build -t vmware/greengrass-init .
+        - >
+          docker run -it --rm vmware/greengrass-init tests/test.yml
+          -i tests/inventory --extra-vars "@extra_vars.yml" -v
