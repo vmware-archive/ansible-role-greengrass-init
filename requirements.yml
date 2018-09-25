@@ -1,3 +1,5 @@
 ---
 - src: vmware.ansible_role_greengrass_awscli
   name: awscli
+- src: vmware.ansible_role_greengrass_awscli
+  name: vmware.awscli
