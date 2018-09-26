@@ -18,4 +18,3 @@ galaxy_info:
     - iot
 dependencies:
   - src: vmware.ansible_role_greengrass_awscli
-    name: vmware.awscli
