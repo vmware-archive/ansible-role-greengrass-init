@@ -1,4 +1,5 @@
 galaxy_info:
+  role_name: greengrass-init
   author: John Gardner
   description: AWS Greengrass basic account initialization
   company: VMware
@@ -16,4 +17,5 @@ galaxy_info:
     - greengrass
     - iot
 dependencies:
-  - role: vmware.ansible_role_greengrass_awscli
+  - src: vmware.ansible_role_greengrass_awscli
+    name: vmware.awscli
