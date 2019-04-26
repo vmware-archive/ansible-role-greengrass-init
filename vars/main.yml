@@ -1,5 +1,5 @@
 # Copyright © 2018 VMware, Inc. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-only
 ---
 # Root CA for greengrass authentication.
 root_ca_checksum: sha256:eec26a7b9d62e3f674bd7befede9c878d484707a85c0702a16f54cd0704544ed

@@ -1,5 +1,5 @@
 # Copyright © 2018 VMware, Inc. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-only
 ---
 # These tasks assemble a set of devices into a device definition for the group.
 - name: Set device definition name, device set

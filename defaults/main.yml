@@ -1,10 +1,10 @@
 # Copyright © 2018 VMware, Inc. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-only
 ---
 # By default, we are following the convention of AWS Console, [groupname]_Core
 core_name_suffix: "_Core"
 # Copyright © 2018 VMware, Inc. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR GPL-3.0-only
 
 # greengrass variables for creating necessary IoT things.
 

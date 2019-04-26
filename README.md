@@ -39,4 +39,4 @@ Greengrass feature.
 
 ### License
 
-ASL-V2
+Apache License 2.0 or GPLv3
