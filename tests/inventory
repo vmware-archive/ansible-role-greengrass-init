@@ -1,5 +1,5 @@
-[greengrass-init]
+[greengrass_init]
 localhost        ansible_connection=local ansible_become=yes
 
-[greengrass-init:vars]
+[greengrass_init:vars]
 greengrass_group_names=role_test1
