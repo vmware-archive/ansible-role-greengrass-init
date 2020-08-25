@@ -108,7 +108,7 @@
       register: device_temp
     - name: download-root-ca
       get_url:
-        url: "http://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem"
+        url: "https://www.websecurity.digicert.com/content/dam/websitesecurity/digitalassets/desktop/pdfs/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem"
         dest: "{{ device_temp.path }}/root.ca.pem"
         checksum: "{{ root_ca_checksum }}"
     - copy:
