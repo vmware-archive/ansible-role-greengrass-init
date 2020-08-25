@@ -10,8 +10,8 @@
     greengrass_group_arn: "{{ greengrass_groups_json | json_query(group_arn_query) }}"
     greengrass_group_id: "{{ greengrass_groups_json | json_query(group_id_query) }}"
   vars:
-    group_arn_query: "Groups[?Name=='{{greengrass_group_name}}'].Arn | [0]"
-    group_id_query: "Groups[?Name=='{{greengrass_group_name}}'].Id | [0]"
+    group_arn_query: "Groups[?Name=='{{ greengrass_group_name }}'].Arn | [0]"
+    group_id_query: "Groups[?Name=='{{ greengrass_group_name }}'].Id | [0]"
   when: greengrass_groups_json is defined
 
 - name: Create a greengrass group
@@ -26,13 +26,13 @@
   set_fact:
     greengrass_group_id: "{{ greengrass_group_create.stdout | from_json | json_query('Id') }}"
     greengrass_group_arn: "{{ greengrass_group_create.stdout | from_json | json_query('Arn') }}"
-  when: greengrass_group_create.changed
+  when: greengrass_group_create.changed # noqa 503
 
 - name: Set initial dict of group details
   set_fact:
     _append_dict: {}
 
-- name: Add group id to collected data
+- name: Build group id entry to collected data
   set_fact:
     _entry: "{ 'id': '{{ greengrass_group_id }}' }"
   when: greengrass_group_id is defined
@@ -78,7 +78,7 @@
 - name: fetch greengrass core id when created
   set_fact:
     core_id: "{{ greengrass_core_create.stdout | from_json | json_query('Id') }}"
-  when: greengrass_core_create.changed
+  when: greengrass_core_create.changed # noqa 503
 
 - name: debug gg cores
   debug: var=greengrass_cores_json
@@ -90,50 +90,59 @@
     id_query: "Definitions[?Name=='{{ core_name }}'].Id | [0]"
   when:
     - greengrass_cores_json is defined
-    - not greengrass_core_create.changed
+    - not greengrass_core_create.changed # noqa 503
 
 - name: Create a greengrass core thing
   block:
-    - debug:
+    - name: Show core to create
+      debug:
         msg: "Creating greengrass core {{ core_name }}."
-    - command: "{{ aws }} iot create-thing --thing-name {{ core_name }}"
+    - name: Create the thing via API
+      command: "{{ aws }} iot create-thing --thing-name {{ core_name }}"
       register: iot_thing_create_core
-    - set_fact:
+    - name: Extract the ARN of the created thing
+      set_fact:
         core_arn: "{{ iot_thing_create_core.stdout | from_json | json_query('thingArn') }}"
-    - command: "{{ aws }} iot create-keys-and-certificate --set-as-active"
+    - name: Generate keys and certs for a thing
+      command: "{{ aws }} iot create-keys-and-certificate --set-as-active"
       register: core_keys_and_certs
-    - set_fact:
+    - name: Parse JSON cert output
+      set_fact:
         core_certificate_pem: >
           {{ core_keys_and_certs.stdout |
           from_json | json_query('certificatePem') }}
-    - set_fact:
+    - name: Save thing cert details for later
+      set_fact:
         core_certificate_key: "{{ core_keys_and_certs.stdout | from_json | json_query('keyPair.PrivateKey') }}"
-    - set_fact:
         core_certificate_arn: "{{ core_keys_and_certs.stdout | from_json | json_query('certificateArn') }}"
-    - set_fact:
         core_certificate_id: "{{ core_keys_and_certs.stdout | from_json | json_query('certificateId') }}"
     - name: create temporary directory for core config
       tempfile:
         state: directory
         suffix: ggc
       register: core_temp
-    - file:
+    - name: Create config subdir to contain thing config files
+      file:
         path: "{{ core_temp.path }}/config"
         state: directory
-    - file:
+    - name: Create certs subdir to contain thing cert files
+      file:
         path: "{{ core_temp.path }}/certs"
         state: directory
     - name: Template out core config
       template:
         src: core_config.json.j2
         dest: "{{ core_temp.path }}/config/config.json"
-    - copy:
+    - name: Emit cert key contents as a file
+      copy:
         content: "{{ core_certificate_key }}"
         dest: "{{ core_temp.path }}/certs/{{ core_name }}.private.key"
-    - copy:
+    - name: Emit cert contents as a file
+      copy:
         content: "{{ core_certificate_pem }}"
         dest: "{{ core_temp.path }}/certs/{{ core_name }}.cert.pem"
-    - archive:
+    - name: Build a tarball of the thing data
+      archive:
         path: "{{ core_temp.path }}/c*/*"
         dest: "{{ core_temp.path }}/{{ core_name }}-setup.tar.gz"
     - name: upload-greengrass-config-s3
@@ -141,28 +150,35 @@
         {{ aws }} s3 cp {{ core_temp.path }}/{{ core_name }}-setup.tar.gz
         s3://{{ greengrass_s3_bucket }}/
       when: greengrass_s3_bucket is defined and not skip_s3_uploads
-    - command: >
+    - name: Attach policy to core
+      command: >
         {{ aws }} iot attach-principal-policy
         --policy-name '{{ core_name }}-policy'
         --principal '{{ core_certificate_arn }}'
-    - command: >
+    - name: Attach policy to core
+      command: >
         {{ aws }} iot attach-thing-principal
         --thing-name '{{ core_name }}'
         --principal '{{ core_certificate_arn }}'
   rescue:
-    - debug:
+    - name: Creating thing failed cleanup
+      debug:
         msg: "Failed to create {{ core_name }}! Destroying what was created."
-    - command: "{{ aws }} iot delete-thing --thing-name {{ core_name }}"
+    - name: Delete the thing we tried to create
+      command: "{{ aws }} iot delete-thing --thing-name {{ core_name }}"
       ignore_errors: yes
-    - command: >
+    - name: Deactivate created cert
+      command: >
         {{ aws }} iot update-certificate
         --certificate-id "{{ core_certificate_id }}" --new-status INACTIVE
       ignore_errors: yes
-    - command: >
+    - name: Delete created cert
+      command: >
         {{ aws }} iot delete-certificate
         --certificate-id "{{ core_certificate_id }}"
       ignore_errors: yes
-    - command: >
+    - name: Remove bad tarball from S3
+      command: >
         {{ aws }} s3 rm
         s3://{{ greengrass_s3_bucket }}/{{ core_temp.path }}/{{ core_name }}-setup.tar.gz
       ignore_errors: yes
@@ -177,12 +193,12 @@
       register: thing_principals
     - set_fact:
         thing_principals_json: "{{ thing_principals.stdout | from_json }}"
-      when: thing_principals.changed
+      when: thing_principals.changed # noqa 503
     - set_fact:
         core_certificate_arn: "{{ thing_principals_json | json_query(cert_arn_query) }}"
       vars:
         cert_arn_query: "principals | [0]"
-      when: thing_principals.changed
+      when: thing_principals.changed # noqa 503
   when: core_certificate_arn is undefined
 
 - name: List core definition versions
@@ -195,7 +211,7 @@
 - name: set core_definition_versions json
   set_fact:
     core_definition_versions_json: "{{ core_definition_versions.stdout | from_json }}"
-  when: core_definition_versions.changed
+  when: core_definition_versions.changed # noqa 503
 
 - name: check for core definition version
   set_fact:
@@ -230,7 +246,7 @@
   set_fact:
     core_definition_version: "{{ create_core_definition_version.stdout | from_json | json_query('Version') }}"
     core_definition_version_arn: "{{ create_core_definition_version.stdout | from_json | json_query('Arn') }}"
-  when: create_core_definition_version.changed
+  when: create_core_definition_version.changed # noqa 503
 
 - name: Create a greengrass device definition for this group
   include_tasks: device_definition.yml
@@ -249,7 +265,7 @@
 - name: set group_versions json
   set_fact:
     group_versions_json: "{{ group_versions.stdout | from_json }}"
-  when: group_versions.changed
+  when: group_versions.changed # noqa 503
 
 - name: Set initial value for group_version_found; looking for a match
   set_fact:
@@ -301,7 +317,7 @@
 - name: set group_version json
   set_fact:
     group_version_json: "{{ create_group_version.stdout | from_json }}"
-  when: create_group_version.changed
+  when: create_group_version.changed # noqa 503
 
 - name: select out newly created group version
   set_fact:
@@ -329,4 +345,5 @@
   when: _append_dict is defined
 
 - name: debug gg group data
-  debug: var=ggc_groups
+  debug:
+    var: ggc_groups

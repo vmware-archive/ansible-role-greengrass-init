@@ -4,7 +4,8 @@
 # This role sets up the AWS configuration for Greengrass to enable deploy.
 # Currently assumes AWS credentials are already set up and AWS CLI is present.
 
-- set_fact: aws="aws {{ lookup('env','AWS_ARGS') }}"
+- name: Use AWS_ARGS env variable if present
+  set_fact: aws="aws {{ lookup('env','AWS_ARGS') }}"
 
 - import_tasks: lambda.yml
   tags: greengrass-lambda
@@ -12,11 +13,12 @@
 - name: Get IoT host
   command: "{{ aws }} iot describe-endpoint"
   register: describe_endpoint
+  when: aws is defined
 
 - name: set IoT host fact
   set_fact:
     iot_host: "{{ describe_endpoint.stdout | from_json | json_query(iot_host_query)}}"
-  when: describe_endpoint.changed and describe_endpoint.rc == 0
+  when: describe_endpoint.changed and describe_endpoint.rc == 0 # noqa 503
   vars:
     iot_host_query: "endpointAddress"
 
@@ -26,7 +28,8 @@
   failed_when: service_role.changed and service_role.rc != 0 and service_role.rc != 255
 
 - name: Debug role
-  debug: var=service_role
+  debug:
+    var: service_role
 
 - name: Create service role
   command: >
@@ -34,14 +37,14 @@
     --assume-role-policy-document {{ greengrass_service_role }}
   register: iam_service_role_create
   when:
-    - service_role.changed and service_role.rc == 255
+    - service_role.changed and service_role.rc == 255 # noqa 503
 
 - name: set service role fact
   set_fact:
     service_role_arn: >
       {{ iam_service_role_create.stdout | from_json |
       json_query(role_arn_query)}}
-  when: iam_service_role_create.changed
+  when: iam_service_role_create.changed # noqa 503
   vars:
     role_arn_query: "Role.Arn"
 
@@ -70,7 +73,7 @@
 - name: set greengrass_groups json
   set_fact:
     greengrass_groups_json: "{{ greengrass_groups.stdout | from_json }}"
-  when: greengrass_groups.changed
+  when: greengrass_groups.changed # noqa 503
 
 - name: set greengrass_group_list
   set_fact:
@@ -87,7 +90,7 @@
 - name: set greengrass_cores json
   set_fact:
     greengrass_cores_json: "{{ greengrass_cores.stdout | from_json }}"
-  when: greengrass_cores.changed
+  when: greengrass_cores.changed # noqa 503
 
 - name: set greengrass_core_list list
   set_fact:
@@ -101,7 +104,7 @@
 - name: set iot_things json
   set_fact:
     iot_things_json: "{{ iot_things.stdout | from_json }}"
-  when: iot_things.changed
+  when: iot_things.changed # noqa 503
 
 - name: set iot_thing_list list
   set_fact:
@@ -118,7 +121,7 @@
 - name: set iot_thing_policies json
   set_fact:
     iot_thing_policies_json: "{{ iot_thing_policies.stdout | from_json }}"
-  when: iot_thing_policies.changed
+  when: iot_thing_policies.changed # noqa 503
 
 - name: set iot_thing_policy_list
   set_fact:

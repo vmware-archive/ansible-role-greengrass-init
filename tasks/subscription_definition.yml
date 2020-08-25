@@ -21,7 +21,7 @@
   register: subscription_definitions
   when:
     - subscription_definition_id is undefined
-    - subscription_def_name is defined and subscription_def_name != ""
+    - subscription_def_name is defined and subscription_def_name | bool
 
 - name: Obtain current subscription definition by name
   set_fact:
@@ -30,7 +30,7 @@
   vars:
     names_query: "Definitions[?Name == '{{ subscription_def_name }}'] | [0]"
   when:
-    - subscription_definitions.changed
+    - subscription_definitions.changed # noqa 503
 
 - name: Obtain current subscription definition attributes
   set_fact:
@@ -65,10 +65,11 @@
       json_query("LatestVersionArn")}}
   vars:
     subscription_definition_id_query: "Id"
-  when: create_subscription_definition.changed
+  when: create_subscription_definition.changed # noqa 503
 
 - name: debug subscription data
-  debug: var=subscription_details
+  debug:
+    var: subscription_details
 
 - name: Create a subscription definition version
   block:
@@ -94,7 +95,7 @@
         subscription_definition_version_arn: >-
           {{ create_subscription_definition_version.stdout | from_json |
           json_query("Arn") }}
-      when: create_subscription_definition_version.changed
+      when: create_subscription_definition_version.changed # noqa 503
   when:
     - subscription_definition_id is defined
     - subscription_definition_version_arn is undefined or

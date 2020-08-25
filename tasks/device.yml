@@ -24,23 +24,27 @@
 
 - name: Record thing details
   block:
-    - command: >
+    - name: Register the thing description
+      command: >
         {{ aws }} iot describe-thing --thing-name "{{ device_name }}"
       register: iot_describe_thing
-    - command: >
+    - name: Register the principals to discover the certs
+      command: >
         {{ aws }} iot list-thing-principals --thing-name "{{ device_name }}"
       register: iot_list_thing_principals
-    - set_fact:
+    - name: Extract the certificate arn from list
+      set_fact:
         certificate_arn: >-
           {{ iot_list_thing_principals.stdout | from_json |
           json_query('principals[0]') }}
-    - set_fact:
+    - name: Extract the thing info arn from previous output
+      set_fact:
         thing_id: >-
           {{ iot_describe_thing.stdout | from_json |
           json_query('thingId') }}
         thing_arn: >-
-            {{ iot_describe_thing.stdout | from_json |
-            json_query('thingArn') }}
+          {{ iot_describe_thing.stdout | from_json |
+          json_query('thingArn') }}
         certificate_arn: >-
           {{ iot_list_thing_principals.stdout | from_json |
           json_query('principals[0]') }}
@@ -108,16 +112,22 @@
       register: device_temp
     - name: download-root-ca
       get_url:
-        url: "https://www.websecurity.digicert.com/content/dam/websitesecurity/digitalassets/desktop/pdfs/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem"
+        url: >-
+          https://www.websecurity.digicert.com/content/dam/websitesecurity/
+          digitalassets/desktop/pdfs/roots/VeriSign-Class%203-Public-Primary-
+          Certification-Authority-G5.pem
         dest: "{{ device_temp.path }}/root.ca.pem"
         checksum: "{{ root_ca_checksum }}"
-    - copy:
+    - name: copy cert key into place
+      copy:
         content: "{{ certificate_key }}"
         dest: "{{ device_temp.path }}/{{ device_name }}.private.key"
-    - copy:
+    - name: copy cert into place
+      copy:
         content: "{{ certificate_pem }}"
         dest: "{{ device_temp.path }}/{{ device_name }}.cert.pem"
-    - archive:
+    - name: copy setup file into place
+      archive:
         path: "{{ device_temp.path }}/*"
         dest: "{{ device_temp.path }}/{{ device_name }}-setup.tar.gz"
     - name: upload-greengrass-config-s3
@@ -129,29 +139,36 @@
         - >-
           (skip_s3_uploads is defined and not skip_s3_uploads) or
           skip_s3_uploads is undefined
-    - command: >
+    - name: attach policy to device
+      command: >
         {{ aws }} iot attach-principal-policy
         --policy-name '{{ device_name }}-policy'
         --principal '{{ certificate_arn }}'
-    - command: >
+    - name: attach policy to device
+      command: >
         {{ aws }} iot attach-thing-principal
         --thing-name '{{ device_name }}'
         --principal '{{ certificate_arn }}'
   rescue:
-    - debug:
+    - name: thing creation failed
+      debug:
         msg: "Failed to create {{ device_name }}! Destroying what was created."
-    - command: >
+    - name: delete iot thing
+      command: >
         {{ aws }} iot delete-thing --thing-name "{{ device_name }}"
       ignore_errors: yes
-    - command: >
+    - name: invalidate iot thing cert
+      command: >
         {{ aws }} iot update-certificate
         --certificate-id "{{ certificate_id }}" --new-status INACTIVE
       ignore_errors: yes
-    - command: >
+    - name: delete iot thing cert
+      command: >
         {{ aws }} iot delete-certificate
         --certificate-id "{{ certificate_id }}"
       ignore_errors: yes
-    - command: >
+    - name: remove tarball from s3
+      command: >
         {{ aws }} s3 rm
         s3://{{ greengrass_s3_bucket }}/{{ device_temp.path }}/{{ device_name }}-setup.tar.gz
       ignore_errors: yes
